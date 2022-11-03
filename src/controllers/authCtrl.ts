@@ -71,7 +71,7 @@ const authCtrl = {
             const access_token = generateAccessToken({id: user._id})
 
 
-            res.json({access_token})
+            res.json({access_token, user})
         } catch (err: any) {
 
         }
@@ -87,6 +87,7 @@ const loginUser = async (user:IUser, password: string,res: Response) => {
     const refresh_token = generateRefreshToken({id: user._id})
 
     res.cookie('refreshtoken', refresh_token, {
+        sameSite: 'strict',
         httpOnly: true,
         path: `/api/refresh_token`,
         maxAge: 30*24*60*60*1000 // 30days
