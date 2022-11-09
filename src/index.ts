@@ -30,6 +30,7 @@ app.use(function(req, res, next) {
 
 // Routes
 app.use('/api', routes.authRouter)
+app.use('/api', routes.userRouter)
 
 
 // Database
