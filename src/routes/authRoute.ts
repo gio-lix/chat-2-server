@@ -1,6 +1,7 @@
 import express from "express"
 import authCtrl from "../controllers/authCtrl";
 import {validRegister} from "../middleware/valid"
+
 const router = express.Router()
 
 router.get("/refresh_token", authCtrl.refreshToken)

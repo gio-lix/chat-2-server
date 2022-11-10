@@ -103,7 +103,7 @@ const authCtrl = {
                     account: email,
                     password: passwordHash,
                     avatar: picture,
-                    type: "login"
+                    type: "google"
                 }
                 await registerUser(newUserRegister, res)
             }
