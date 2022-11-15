@@ -96,8 +96,6 @@ const blogCtrl = {
     getBlogsByCategory: async (req:Request, res: Response) => {
         const {limit, skip, page} = Pagination(req)
         try {
-
-
             const Data = await Blogs.aggregate([
                 {
                     $facet: {
@@ -124,6 +122,66 @@ const blogCtrl = {
                         totalCount: [
                             // @ts-ignore
                             {$match: {category: mongoose.Types.ObjectId(req.params.category_id)}},
+                            {$count: "count"}
+                        ]
+                    }
+                },
+                {
+                    $project: {
+                        count: { $arrayElemAt: ["$totalCount.count", 0] },
+                        totalData: 1
+                    }
+                }
+            ])
+            // Pagination
+            const blogs = Data[0].totalData;
+            const count = Data[0].count;
+
+            // Pagination
+            let total = 0;
+
+            if(count % limit === 0){
+                total = count / limit;
+            }else {
+                total = Math.floor(count / limit) + 1;
+            }
+
+
+            res.json({ blogs, total })
+        } catch (err: any) {
+            return res.status(500).json({msg: err.message})
+        }
+    },
+
+    getBlogsByUser: async (req:Request, res: Response) => {
+        const {limit, skip, page} = Pagination(req)
+        try {
+            const Data = await Blogs.aggregate([
+                {
+                    $facet: {
+                        totalData: [
+                            // @ts-ignore
+                            {$match: {user: mongoose.Types.ObjectId(req.params.id)}},
+                            {
+                                $lookup:{
+                                    from: "users",
+                                    let: { user_id: "$user" },
+                                    pipeline: [
+                                        { $match: { $expr: { $eq: ["$_id", "$$user_id"] } } },
+                                        { $project: { password: 0 }}
+                                    ],
+                                    as: "user"
+                                }
+                            },
+                            // array -> object
+                            { $unwind: "$user" },
+                            { $sort: { "createdAt": -1 } },
+                            { $skip: skip},
+                            { $limit: limit}
+                        ],
+                        totalCount: [
+                            // @ts-ignore
+                            {$match: {user: mongoose.Types.ObjectId(req.params.id)}},
                             {$count: "count"}
                         ]
                     }

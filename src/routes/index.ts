@@ -1,5 +1,5 @@
 import authRouter from "./authRoute"
-import userRouter from "./userRouter"
+import userRouter from "./userRoute"
 import categoryRouter from "./categoryRoute"
 import blogRouter from "./blogRoute"
 
