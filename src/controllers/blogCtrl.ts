@@ -1,5 +1,6 @@
 import {Request, Response} from "express";
 import Blogs from '../moduls/blogModel'
+import Comments from "../moduls/commentModule"
 import {IReqAuth} from "../config/interface";
 import mongoose from "mongoose";
 
@@ -31,7 +32,10 @@ const blogCtrl = {
             await newBlog.save()
 
 
-            res.json({newBlog})
+            res.json({
+                ...newBlog._doc,
+                user: req.user
+            })
         } catch (err: any) {
             return res.status(500).json({msg: err.message})
         }
@@ -42,18 +46,18 @@ const blogCtrl = {
             const blogs = await Blogs.aggregate([
                 // User
                 {
-                    $lookup:{
+                    $lookup: {
                         from: "users",
-                        let: { user_id: "$user" },
+                        let: {user_id: "$user"},
                         pipeline: [
-                            { $match: { $expr: { $eq: ["$_id", "$$user_id"] } } },
-                            { $project: { password: 0 }}
+                            {$match: {$expr: {$eq: ["$_id", "$$user_id"]}}},
+                            {$project: {password: 0}}
                         ],
                         as: "user"
                     }
                 },
                 // array -> object
-                { $unwind: "$user" },
+                {$unwind: "$user"},
                 // Category
                 {
                     $lookup: {
@@ -64,16 +68,16 @@ const blogCtrl = {
                     }
                 },
                 // array -> object
-                { $unwind: "$category" },
+                {$unwind: "$category"},
                 // Sorting
-                { $sort: { "createdAt": -1 } },
+                {$sort: {"createdAt": -1}},
                 // Group by category
                 {
                     $group: {
                         _id: "$category._id",
-                        name: { $first: "$category.name" },
-                        blogs: { $push: "$$ROOT" },
-                        count: { $sum: 1 }
+                        name: {$first: "$category.name"},
+                        blogs: {$push: "$$ROOT"},
+                        count: {$sum: 1}
                     }
                 },
                 // Pagination for blogs
@@ -93,7 +97,7 @@ const blogCtrl = {
         }
     },
 
-    getBlogsByCategory: async (req:Request, res: Response) => {
+    getBlogsByCategory: async (req: Request, res: Response) => {
         const {limit, skip, page} = Pagination(req)
         try {
             const Data = await Blogs.aggregate([
@@ -103,21 +107,21 @@ const blogCtrl = {
                             // @ts-ignore
                             {$match: {category: mongoose.Types.ObjectId(req.params.category_id)}},
                             {
-                                $lookup:{
+                                $lookup: {
                                     from: "users",
-                                    let: { user_id: "$user" },
+                                    let: {user_id: "$user"},
                                     pipeline: [
-                                        { $match: { $expr: { $eq: ["$_id", "$$user_id"] } } },
-                                        { $project: { password: 0 }}
+                                        {$match: {$expr: {$eq: ["$_id", "$$user_id"]}}},
+                                        {$project: {password: 0}}
                                     ],
                                     as: "user"
                                 }
                             },
                             // array -> object
-                            { $unwind: "$user" },
-                            { $sort: { "createdAt": -1 } },
-                            { $skip: skip},
-                            { $limit: limit}
+                            {$unwind: "$user"},
+                            {$sort: {"createdAt": -1}},
+                            {$skip: skip},
+                            {$limit: limit}
                         ],
                         totalCount: [
                             // @ts-ignore
@@ -128,7 +132,7 @@ const blogCtrl = {
                 },
                 {
                     $project: {
-                        count: { $arrayElemAt: ["$totalCount.count", 0] },
+                        count: {$arrayElemAt: ["$totalCount.count", 0]},
                         totalData: 1
                     }
                 }
@@ -140,20 +144,20 @@ const blogCtrl = {
             // Pagination
             let total = 0;
 
-            if(count % limit === 0){
+            if (count % limit === 0) {
                 total = count / limit;
-            }else {
+            } else {
                 total = Math.floor(count / limit) + 1;
             }
 
 
-            res.json({ blogs, total })
+            res.json({blogs, total})
         } catch (err: any) {
             return res.status(500).json({msg: err.message})
         }
     },
 
-    getBlogsByUser: async (req:Request, res: Response) => {
+    getBlogsByUser: async (req: Request, res: Response) => {
         const {limit, skip, page} = Pagination(req)
         try {
             const Data = await Blogs.aggregate([
@@ -163,21 +167,21 @@ const blogCtrl = {
                             // @ts-ignore
                             {$match: {user: mongoose.Types.ObjectId(req.params.id)}},
                             {
-                                $lookup:{
+                                $lookup: {
                                     from: "users",
-                                    let: { user_id: "$user" },
+                                    let: {user_id: "$user"},
                                     pipeline: [
-                                        { $match: { $expr: { $eq: ["$_id", "$$user_id"] } } },
-                                        { $project: { password: 0 }}
+                                        {$match: {$expr: {$eq: ["$_id", "$$user_id"]}}},
+                                        {$project: {password: 0}}
                                     ],
                                     as: "user"
                                 }
                             },
                             // array -> object
-                            { $unwind: "$user" },
-                            { $sort: { "createdAt": -1 } },
-                            { $skip: skip},
-                            { $limit: limit}
+                            {$unwind: "$user"},
+                            {$sort: {"createdAt": -1}},
+                            {$skip: skip},
+                            {$limit: limit}
                         ],
                         totalCount: [
                             // @ts-ignore
@@ -188,7 +192,7 @@ const blogCtrl = {
                 },
                 {
                     $project: {
-                        count: { $arrayElemAt: ["$totalCount.count", 0] },
+                        count: {$arrayElemAt: ["$totalCount.count", 0]},
                         totalData: 1
                     }
                 }
@@ -200,17 +204,67 @@ const blogCtrl = {
             // Pagination
             let total = 0;
 
-            if(count % limit === 0){
+            if (count % limit === 0) {
                 total = count / limit;
-            }else {
+            } else {
                 total = Math.floor(count / limit) + 1;
             }
 
 
-            res.json({ blogs, total })
+            res.json({blogs, total})
+        } catch (err: any) {
+            return res.status(500).json({msg: err.message})
+        }
+    },
+    getBlog: async (req: Request, res: Response) => {
+        try {
+            const blog = await Blogs.findOne({_id: req.params.id})
+                .populate("user", "-password")
+                .exec()
+
+            if (!blog) return res.status(400).json({msg: "Blog does not exist."})
+
+            return res.json(blog)
+
+        } catch (err: any) {
+            return res.status(500).json({msg: err.message})
+        }
+    },
+
+    updateBlog: async (req: IReqAuth, res: Response) => {
+        if (!req.user) return res.status(400).json({msg: "Invalid Authentication"})
+        try {
+            const blog = await Blogs.findOneAndUpdate({
+                _id: req.params.id,
+                user: req.user._id
+            }, req.body)
+            if (!blog) return res.status(400).json({msg: "Invalid Authentication"})
+
+            res.json({msg: "Update Success", blog})
+        } catch (err: any) {
+            return res.status(500).json({msg: err.message})
+        }
+    },
+
+    deleteBlog: async (req: IReqAuth, res: Response) => {
+        if(!req.user)
+            return res.status(400).json({msg: "Invalid Authentication."})
+        try {
+            const blog = await Blogs.findOneAndDelete({
+                _id: req.params.id, user: req.user._id
+            })
+
+            if(!blog)
+                return res.status(400).json({msg: "Invalid Authentication."})
+
+            await Comments.deleteMany({blog_id: blog._id})
+
+            return res.json({msg: "Delete Success!"})
+
         } catch (err: any) {
             return res.status(500).json({msg: err.message})
         }
     }
 }
 export default blogCtrl
+
