@@ -17,6 +17,8 @@ router.get("/blogs/:category_id" ,blogCtrl.getBlogsByCategory)
 
 router.get("/blogs/user/:id" ,blogCtrl.getBlogsByUser)
 
+router.get("/search/blogs", blogCtrl.searchBlog)
+
 
 
 export default router

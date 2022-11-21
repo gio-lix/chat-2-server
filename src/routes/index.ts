@@ -5,12 +5,12 @@ import blogRouter from "./blogRoute"
 import commentRouter from "./commentRouter";
 
 
-const routes = {
+const routes = [
     authRouter,
     userRouter,
     categoryRouter,
     blogRouter,
     commentRouter
-}
+]
 
 export default routes

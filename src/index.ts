@@ -1,4 +1,6 @@
 import dotenv from 'dotenv'
+dotenv.config()
+
 import express from 'express'
 import {Server, Socket} from "socket.io"
 import {createServer} from "http"
@@ -6,12 +8,14 @@ import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import morgan from 'morgan'
 import routes from './routes/index'
+import path from "path"
 
+import './config/dataBase'
 
 
 const app = express()
 
-dotenv.config()
+
 app.use(cors())
 app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
@@ -33,6 +37,7 @@ app.use(cookieParser())
 
 const http = createServer(app)
 export const io = new Server(http)
+import {SocketServer} from "./config/socket";
 
 
 io.on("connection",(socket: Socket) => {
@@ -41,20 +46,18 @@ io.on("connection",(socket: Socket) => {
 
 
 
-// Routes
-app.use('/api', routes.authRouter)
-app.use('/api', routes.userRouter)
-app.use('/api', routes.categoryRouter)
-app.use('/api', routes.blogRouter)
-app.use('/api', routes.commentRouter)
+
+app.use('/api', routes)
 
 
 
 
-
-// Database
-import '../src/config/dataBase'
-import {SocketServer} from "./config/socket";
+if(process.env.NODE_ENV === 'production'){
+    app.use(express.static('index.html'))
+    app.get('*', (req, res) => {
+        res.sendFile(path.join(__dirname, '../index.html'))
+    })
+}
 
 
 const PORT = process.env.PORT || 5000

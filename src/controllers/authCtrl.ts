@@ -2,13 +2,13 @@ import {Request, Response} from "express"
 import Users from "../moduls/userModule"
 import bcrypt from "bcrypt"
 import {generateAccessToken, generateActiveToken, generateRefreshToken} from "../config/generateToken"
-import {IDecodedToken, IGooglePayload, IUser, IUserParams} from "../config/interface";
+import {IDecodedToken, IGooglePayload, IReqAuth, IUser, IUserParams} from "../config/interface";
 import jwt from "jsonwebtoken";
 import {OAuth2Client} from "google-auth-library"
 
 
 const client = new OAuth2Client(`${process.env.MAIL_CLIENT_ID}`)
-
+const CLIENT_URL = `${process.env.BASE_URL}`
 
 const authCtrl = {
     register: async (req: Request, res: Response) => {
@@ -50,9 +50,14 @@ const authCtrl = {
             return res.status(500).json({msg: err.message})
         }
     },
-    logout: async (req: Request, res: Response) => {
+    logout: async (req: IReqAuth, res: Response) => {
+        if  (!req.user) return res.status(400).json({msg: "Invalid Authentication."})
         try {
             res.clearCookie("refreshtoken", {path: `/api/refresh_token`})
+            await Users.findOneAndUpdate(
+                {_id: req.user._id},
+                {rf_token: ""})
+
             return res.json({msg: "logged out!"})
         } catch (err: any) {
             return res.status(500).json({msg: err.message})
@@ -60,7 +65,7 @@ const authCtrl = {
     },
     refreshToken: async (req: Request, res: Response) => {
         try {
-            console.log("req.cookies.refresh_token->", req.cookies.refresh_token)
+
             const rf_token = req.cookies.refresh_token
             if (!rf_token) return res.status(400).json({msg: "Please login now!"})
 
@@ -68,11 +73,22 @@ const authCtrl = {
 
             if (!decoded.id) return res.status(400).json({msg: "Please login now!"})
 
-            const user = await Users.findById(decoded.id).select("-password")
+            const user = await Users.findById(decoded.id).select("-password +rf_token")
 
             if (!user) return res.status(400).json({msg: "This account does not exist."})
 
+
+            if (rf_token !== user.rf_token) {
+                return res.status(400).json({msg: "Please login now!"})
+            }
+
             const access_token = generateAccessToken({id: user._id})
+            const refresh_token = generateRefreshToken({id: user._id}, res)
+
+            await Users.findOneAndUpdate(
+                {_id: user._id},
+                {rf_token: refresh_token})
+
 
             res.json({access_token, user})
         } catch (err: any) {
@@ -114,20 +130,20 @@ const authCtrl = {
 }
 
 
+
+
+
 const loginUser = async (user: IUser, password: string, res: Response) => {
     const isMatch = await bcrypt.compare(password, user.password)
     if (!isMatch) return res.status(500).json({msg: "Password is incorrect."})
 
 
     const access_token = generateAccessToken({id: user._id})
-    const refresh_token = generateRefreshToken({id: user._id})
+    const refresh_token = generateRefreshToken({id: user._id}, res)
 
-    res.cookie('refresh_token', refresh_token, {
-        httpOnly: true,
-        secure: true,
-        path: `/api/refresh_token`,
-        maxAge: 30 * 24 * 60 * 60 * 1000 // 30days
-    })
+    await Users.findOneAndUpdate(
+        {_id: user._id},
+        {rf_token: refresh_token})
 
     res.json({
         msg: 'Login Success!',
@@ -141,14 +157,12 @@ const registerUser = async (user: IUserParams, res: Response) => {
     await newUser.save()
 
     const access_token = generateAccessToken({id: newUser._id})
-    const refresh_token = generateRefreshToken({id: newUser._id})
+    const refresh_token = generateRefreshToken({id: newUser._id}, res)
 
-    res.cookie('refresh_token', refresh_token, {
-        httpOnly: true,
-        secure: true,
-        path: `/api/refresh_token`,
-        maxAge: 30 * 24 * 60 * 60 * 1000 // 30days
-    })
+
+
+    newUser.rf_token = refresh_token
+    await newUser.save()
 
     res.json({
         msg: 'Login Success!',
@@ -157,6 +171,9 @@ const registerUser = async (user: IUserParams, res: Response) => {
     })
 
 }
+
+
+
 
 
 export default authCtrl
